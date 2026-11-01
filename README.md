@@ -1,0 +1,1 @@
+# kaspersky_test_task_intern2026
