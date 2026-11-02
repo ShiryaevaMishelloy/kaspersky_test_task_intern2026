@@ -99,10 +99,14 @@ class CompetitiveIntelligenceScraper:
         if local_html_path and Path(local_html_path).exists():
             return 200, Path(local_html_path).read_text(encoding="utf-8", errors="ignore")
 
-        resp = self.session.get(url, headers=self.headers, timeout=25)
-        if "4pda.to" in url and resp.encoding.lower() != "utf-8":
-            resp.encoding = "windows-1251"
-        return resp.status_code, resp.text
+        try:
+            resp = self.session.get(url, headers=self.headers, timeout=15, verify=False)
+            if "4pda.to" in url and resp.encoding and resp.encoding.lower() != "utf-8":
+                resp.encoding = "windows-1251"
+            return resp.status_code, resp.text
+        except Exception as e:
+            print(f"[WARN] Сайт {url} сбросил соединение ({e}). Пропускаем или берем локальный файл.")
+            return 504, ""
 
     @staticmethod
     def parse_structured_meta(soup: BeautifulSoup) -> tuple[Dict[str, str], List[Dict[str, Any]]]:
@@ -323,17 +327,17 @@ class CompetitiveIntelligenceScraper:
 
 if __name__ == "__main__":
     SOURCES = [
-        "https://irecommend.ru/content/sait-ozontravel-0",
-        "https://5koleso.livejournal.com",
-        "https://dzen.ru/news/rubric/computers",
-        "https://4pda.to/forum/index.php?showforum=320",
-        "https://otzovik.com/money_systems/banks/",
-        "https://www.drive2.ru/featured-topics/CVQ0gEAAcHQ/",
+        ("https://irecommend.ru/content/sait-ozontravel-0", "1.html"),
+        ("https://5koleso.livejournal.com", "2.html"),
+        ("https://dzen.ru/news/rubric/computers", "3.html"),
+        ("https://4pda.to/forum/index.php?showforum=320", "4.html"),
+        ("https://otzovik.com/money_systems/banks/", "5.html"),
+        ("https://www.drive2.ru/featured-topics/CVQ0gEAAcHQ/", "6.html"),
     ]
-  
+
     scraper = CompetitiveIntelligenceScraper()
     with open("output_dataset.jsonl", "w", encoding="utf-8") as out_file:
-        for url in SOURCES:
-            doc = scraper.run_for_url(url)
+        for url, local_file in SOURCES:
+            doc = scraper.run_for_url(url, local_html=local_file)
             out_file.write(doc.model_dump_json() + "\n")
-            print(f"[{doc.source_class}] {doc.domain} | DQ: {doc.dq_report}")
+            print(f"[{doc.source_class}] {doc.domain} | HTTP: {doc.http_status} | DQ: {doc.dq_report}")
